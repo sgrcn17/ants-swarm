@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import math
 from ant import Ant
 from anthill import AntHill
 from foodgroup import FoodGroup
@@ -23,7 +24,7 @@ running = True
 
 scale = 0.5
 antCount = 75
-foodCount = 500
+foodCount = 1500
 
 # Create the ant hill (mrowisko) at the center
 ant_hill = AntHill(WIDTH // 2, HEIGHT // 2, radius=40)
@@ -31,11 +32,32 @@ ant_hill = AntHill(WIDTH // 2, HEIGHT // 2, radius=40)
 # Create pheromone manager
 pheromone_manager = PheromoneManager(evaporation_rate=1, influence_radius=80)
 
-# Create ants at the ant hill location
+# Create ants at the ant hill location with highly asymmetric initial states
 ants = [Ant(WIDTH // 2, HEIGHT // 2, scale, WIDTH, HEIGHT) for _ in range(antCount)]
-for ant in ants:
+for i, ant in enumerate(ants):
     ant.set_ant_hill(ant_hill)
     ant.set_pheromone_manager(pheromone_manager)
+    
+    # Highly asymmetric initialization
+    # Use different random distributions for each ant
+    random_angle = random.gauss(0, 3)  # Gaussian distribution for angle clustering
+    random_speed = random.triangular(ant.maxSpeed * 0.3, ant.maxSpeed * 1.2, ant.maxSpeed * 0.6)
+    
+    # Add chaos with prime number offset for each ant
+    chaos_offset = (i * 37) % 360  # Prime-based offset
+    random_angle += math.radians(chaos_offset)
+    
+    ant.velocity = pygame.math.Vector2(
+        random_speed * math.cos(random_angle),
+        random_speed * math.sin(random_angle)
+    )
+    ant.desiredDirection = ant.velocity.normalize()
+    
+    # Highly varied rotation
+    ant.rotation = random.gauss(0, 120)
+    
+    # Randomize wander strength per ant for different exploration patterns
+    ant.wanderStrength = random.uniform(0.2, 1.5)
 
 # Create 4 food groups in different corners/areas of the screen
 food_groups = []
