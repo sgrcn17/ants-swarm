@@ -16,8 +16,16 @@ class Ant:
         self.viewDistance = 70 * scale
         self.viewAngle = 3.14159 / 2
         self.seenFood = None
+        self.carrying_food = False
+        self.food_group_id = None
+        self.ant_hill = None
     
     def seeFood(self, foodPositions):
+        # If carrying food, don't look for more food
+        if self.carrying_food:
+            self.seenFood = None
+            return
+        
         if self.seenFood not in foodPositions:
             self.seenFood = None
     
@@ -30,9 +38,32 @@ class Ant:
             if abs(angleToFood) < math.degrees(self.viewAngle) / 2:
                 self.seenFood = foodPos
                 return
+    
+    def set_ant_hill(self, ant_hill):
+        """Set the ant hill reference for this ant"""
+        self.ant_hill = ant_hill
+    
+    def pickup_food(self, group_id):
+        """Pick up food and remember which group it came from"""
+        self.carrying_food = True
+        self.food_group_id = group_id
+        self.seenFood = None
+    
+    def deposit_food(self):
+        """Deposit food at the ant hill"""
+        if self.ant_hill and self.carrying_food:
+            self.ant_hill.deposit_food(self.food_group_id)
+            self.carrying_food = False
+            self.food_group_id = None
+            return True
+        return False
 
     def update(self, deltaTime):
-        if self.seenFood is not None:
+        # If carrying food, head back to ant hill
+        if self.carrying_food and self.ant_hill:
+            toHill = self.ant_hill.position - self.position
+            self.desiredDirection = toHill.normalize()
+        elif self.seenFood is not None:
             toFood = pygame.math.Vector2(self.seenFood) - self.position
             self.desiredDirection = toFood.normalize()
         else:
@@ -58,8 +89,11 @@ class Ant:
             self.rotation = self.velocity.angle_to(pygame.math.Vector2(1, 0))
 
     def draw(self, screen):
+        # Determine ant color based on whether it's carrying food
+        ant_color = COLOR.ANT_CARRYING if self.carrying_food else COLOR.ANT
+        
         ant_surface = pygame.Surface((20 * self.scale, 7 * self.scale), pygame.SRCALPHA)
-        pygame.draw.ellipse(ant_surface, COLOR.ANT, (0, 0, 20 * self.scale, 7 * self.scale))
+        pygame.draw.ellipse(ant_surface, ant_color, (0, 0, 20 * self.scale, 7 * self.scale))
         rotated_surface = pygame.transform.rotate(ant_surface, self.rotation)
         rotated_rect = rotated_surface.get_rect(center=(self.position.x, self.position.y))
         screen.blit(rotated_surface, rotated_rect.topleft)
