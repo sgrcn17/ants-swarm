@@ -49,6 +49,9 @@ class AntHill:
     
     def draw_statistics(self, screen, font):
         """Draw statistics text on the screen"""
+        # Color names for each group
+        group_colors = ["Green", "Red", "Blue", "Yellow", "Purple"]
+        
         y_offset = 10
         # Total food
         total_text = font.render(f"Total Food: {self.total_food_collected}", True, (0, 0, 0))
@@ -58,6 +61,7 @@ class AntHill:
         # Food by group
         for group_id in sorted(self.food_by_group.keys()):
             count = self.food_by_group[group_id]
-            group_text = font.render(f"Group {group_id}: {count}", True, (0, 0, 0))
+            color_name = group_colors[group_id] if group_id < len(group_colors) else str(group_id)
+            group_text = font.render(f"Group {color_name}: {count}", True, (0, 0, 0))
             screen.blit(group_text, (10, y_offset))
             y_offset += 25

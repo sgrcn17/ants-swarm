@@ -10,12 +10,13 @@ class COLOR:
     ANTHILL_INNER = (139, 90, 43)  # Medium brown
     ANTHILL_CENTER = (160, 82, 45)  # Sienna
     
-    # Food group colors (4 different colors for 4 groups)
+    # Food group colors (5 different colors for 5 groups)
     FOOD_GROUPS = [
-        (50, 255, 50),    # Green (group 0)
-        (255, 50, 50),    # Red (group 1)
-        (50, 50, 255),    # Blue (group 2)
-        (255, 255, 50)    # Yellow (group 3)
+        (50, 255, 50),    # Green
+        (255, 50, 50),    # Red
+        (50, 50, 255),    # Blue
+        (255, 255, 50),   # Yellow
+        (200, 50, 255)    # Purple
     ]
     
     # Pheromone colors

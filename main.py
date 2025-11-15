@@ -26,14 +26,14 @@ scale = 0.5
 antCount = 75
 foodCount = 1500
 
-# Create the ant hill (mrowisko) at the center
-ant_hill = AntHill(WIDTH // 2, HEIGHT // 2, radius=40)
+# Create the ant hill (mrowisko) close to center but asymmetric
+ant_hill = AntHill(WIDTH // 2 + 80, HEIGHT // 2 - 60, radius=40)
 
 # Create pheromone manager
 pheromone_manager = PheromoneManager(evaporation_rate=1, influence_radius=80)
 
 # Create ants at the ant hill location with highly asymmetric initial states
-ants = [Ant(WIDTH // 2, HEIGHT // 2, scale, WIDTH, HEIGHT) for _ in range(antCount)]
+ants = [Ant(WIDTH // 2 + 80, HEIGHT // 2 - 60, scale, WIDTH, HEIGHT) for _ in range(antCount)]
 for i, ant in enumerate(ants):
     ant.set_ant_hill(ant_hill)
     ant.set_pheromone_manager(pheromone_manager)
@@ -59,22 +59,25 @@ for i, ant in enumerate(ants):
     # Randomize wander strength per ant for different exploration patterns
     ant.wanderStrength = random.uniform(0.2, 1.5)
 
-# Create 4 food groups in different corners/areas of the screen
+# Create 5 food groups asymmetrically placed on the map
+# Anthill is at (580, 440)
 food_groups = []
-food_per_group = foodCount // 4
-corner_margin = 90  # Distance from corner (10px from border + spread_radius of 80)
+food_per_group = foodCount // 5
 
-# Group 0: Top-left corner
-food_groups.append(FoodGroup(0, corner_margin, corner_margin, food_per_group, spread_radius=80))
+# Group Green: Close to anthill, upper-left
+food_groups.append(FoodGroup(0, 380, 280, food_per_group, spread_radius=80))
 
-# Group 1: Top-right corner
-food_groups.append(FoodGroup(1, WIDTH - corner_margin, corner_margin, food_per_group, spread_radius=80))
+# Group Red: Far, top-right area
+food_groups.append(FoodGroup(1, WIDTH - 180, 200, food_per_group, spread_radius=80))
 
-# Group 2: Bottom-left corner
-food_groups.append(FoodGroup(2, corner_margin, HEIGHT - corner_margin, food_per_group, spread_radius=80))
+# Group Blue: Medium distance, left side
+food_groups.append(FoodGroup(2, 200, HEIGHT - 300, food_per_group, spread_radius=80))
 
-# Group 3: Bottom-right corner
-food_groups.append(FoodGroup(3, WIDTH - corner_margin, HEIGHT - corner_margin, food_per_group, spread_radius=80))
+# Group Yellow: Close to anthill, right side
+food_groups.append(FoodGroup(3, 750, 520, food_per_group, spread_radius=80))
+
+# Group Purple: Far, bottom area
+food_groups.append(FoodGroup(4, WIDTH // 2 - 100, HEIGHT - 120, food_per_group, spread_radius=80))
 
 clock = pygame.time.Clock()
 
@@ -97,10 +100,6 @@ while running:
     ant_hill.draw(screen)
 
     # Collect all food positions from all groups for ant vision
-    all_food_positions = []
-    for group in food_groups:
-        all_food_positions.extend(group.get_all_positions())
-
     # Update and draw ants
     for ant in ants:
         # Check if ant reached food (increased collision radius)
@@ -116,8 +115,17 @@ while running:
         if ant.carrying_food and ant_hill.is_inside(ant.position, distance_threshold=50):
             ant.deposit_food()
         
-        # Update ant behavior
-        ant.seeFood(all_food_positions)
+        # Only collect food positions from nearby groups (within vision range)
+        nearby_food = []
+        vision_range = ant.viewDistance + 100  # Add buffer to check slightly beyond view distance
+        for group in food_groups:
+            # Quick distance check to group center
+            dist_to_group = (ant.position - group.center).length()
+            if dist_to_group < vision_range + group.spread_radius:
+                nearby_food.extend(group.get_all_positions())
+        
+        # Update ant behavior with only nearby food
+        ant.seeFood(nearby_food)
         ant.update(deltaTime)
         ant.draw(screen)
 
