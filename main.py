@@ -29,10 +29,10 @@ foodCount = 500
 ant_hill = AntHill(WIDTH // 2, HEIGHT // 2, radius=40)
 
 # Create pheromone manager
-pheromone_manager = PheromoneManager(evaporation_rate=0.5, influence_radius=60)
+pheromone_manager = PheromoneManager(evaporation_rate=1, influence_radius=80)
 
 # Create ants at the ant hill location
-ants = [Ant(WIDTH // 2, HEIGHT // 2, scale) for _ in range(antCount)]
+ants = [Ant(WIDTH // 2, HEIGHT // 2, scale, WIDTH, HEIGHT) for _ in range(antCount)]
 for ant in ants:
     ant.set_ant_hill(ant_hill)
     ant.set_pheromone_manager(pheromone_manager)
@@ -40,18 +40,19 @@ for ant in ants:
 # Create 4 food groups in different corners/areas of the screen
 food_groups = []
 food_per_group = foodCount // 4
+corner_margin = 90  # Distance from corner (10px from border + spread_radius of 80)
 
-# Group 0: Top-left area
-food_groups.append(FoodGroup(0, WIDTH * 0.25, HEIGHT * 0.25, food_per_group, spread_radius=80))
+# Group 0: Top-left corner
+food_groups.append(FoodGroup(0, corner_margin, corner_margin, food_per_group, spread_radius=80))
 
-# Group 1: Top-right area
-food_groups.append(FoodGroup(1, WIDTH * 0.75, HEIGHT * 0.25, food_per_group, spread_radius=80))
+# Group 1: Top-right corner
+food_groups.append(FoodGroup(1, WIDTH - corner_margin, corner_margin, food_per_group, spread_radius=80))
 
-# Group 2: Bottom-left area
-food_groups.append(FoodGroup(2, WIDTH * 0.25, HEIGHT * 0.75, food_per_group, spread_radius=80))
+# Group 2: Bottom-left corner
+food_groups.append(FoodGroup(2, corner_margin, HEIGHT - corner_margin, food_per_group, spread_radius=80))
 
-# Group 3: Bottom-right area
-food_groups.append(FoodGroup(3, WIDTH * 0.75, HEIGHT * 0.75, food_per_group, spread_radius=80))
+# Group 3: Bottom-right corner
+food_groups.append(FoodGroup(3, WIDTH - corner_margin, HEIGHT - corner_margin, food_per_group, spread_radius=80))
 
 clock = pygame.time.Clock()
 
@@ -80,11 +81,11 @@ while running:
 
     # Update and draw ants
     for ant in ants:
-        # Check if ant reached food
+        # Check if ant reached food (increased collision radius)
         if not ant.carrying_food and ant.seenFood is not None:
             for group in food_groups:
                 if ant.seenFood in group.get_all_positions():
-                    if (ant.position - ant.seenFood).length() < 5:
+                    if (ant.position - ant.seenFood).length() < 15:  # Increased from 5 to 15
                         group.remove_food(ant.seenFood)
                         ant.pickup_food(group.group_id)
                         break
