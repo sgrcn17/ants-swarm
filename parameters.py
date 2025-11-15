@@ -17,3 +17,7 @@ class COLOR:
         (50, 50, 255),    # Blue (group 2)
         (255, 255, 50)    # Yellow (group 3)
     ]
+    
+    # Pheromone colors
+    PHEROMONE_SEARCH = (50, 100, 255)   # Blue - deposited while searching (ants without food follow red, WITH food follow blue)
+    PHEROMONE_RETURN = (255, 50, 50)    # Red - deposited while returning with food (ants searching follow these)

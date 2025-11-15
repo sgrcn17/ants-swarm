@@ -4,6 +4,7 @@ import random
 from ant import Ant
 from anthill import AntHill
 from foodgroup import FoodGroup
+from pheromone import PheromoneManager
 from parameters import COLOR
 
 pygame.init()
@@ -21,16 +22,20 @@ clock = pygame.time.Clock()
 running = True
 
 scale = 0.5
-antCount = 100
-foodCount = 100
+antCount = 75
+foodCount = 500
 
 # Create the ant hill (mrowisko) at the center
 ant_hill = AntHill(WIDTH // 2, HEIGHT // 2, radius=40)
+
+# Create pheromone manager
+pheromone_manager = PheromoneManager(evaporation_rate=0.5, influence_radius=60)
 
 # Create ants at the ant hill location
 ants = [Ant(WIDTH // 2, HEIGHT // 2, scale) for _ in range(antCount)]
 for ant in ants:
     ant.set_ant_hill(ant_hill)
+    ant.set_pheromone_manager(pheromone_manager)
 
 # Create 4 food groups in different corners/areas of the screen
 food_groups = []
@@ -58,6 +63,12 @@ while running:
             running = False
 
     screen.fill(COLOR.GROUND)
+
+    # Update pheromones (evaporation)
+    pheromone_manager.update(deltaTime)
+
+    # Draw pheromones first (behind everything)
+    pheromone_manager.draw(screen, scale)
 
     # Draw the ant hill first (so it appears behind ants)
     ant_hill.draw(screen)

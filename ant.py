@@ -19,6 +19,15 @@ class Ant:
         self.carrying_food = False
         self.food_group_id = None
         self.ant_hill = None
+        self.pheromone_manager = None
+        self.pheromone_deposit_timer = 0.0
+        self.pheromone_deposit_interval = 0.1  # Drop pheromone every 1.5 seconds
+        self.pheromone_follow_probability = 0.75  # 75% chance to follow pheromones
+        self.pheromone_influence_weight = 0.5  # How much pheromones affect direction
+        self.distance_from_hill = 0.0  # Track distance traveled from ant hill
+        self.min_distance_to_follow = 80  # Minimum distance from hill before following pheromones
+        self.path_memory = []  # Store path when finding food
+        self.max_path_memory = 200  # Maximum path points to remember
     
     def seeFood(self, foodPositions):
         # If carrying food, don't look for more food
@@ -43,34 +52,114 @@ class Ant:
         """Set the ant hill reference for this ant"""
         self.ant_hill = ant_hill
     
+    def set_pheromone_manager(self, pheromone_manager):
+        """Set the pheromone manager reference for this ant"""
+        self.pheromone_manager = pheromone_manager
+    
     def pickup_food(self, group_id):
         """Pick up food and remember which group it came from"""
         self.carrying_food = True
         self.food_group_id = group_id
         self.seenFood = None
+        # Remember current position when picking up food
+        self.path_memory.append(self.position.copy())
     
     def deposit_food(self):
         """Deposit food at the ant hill"""
         if self.ant_hill and self.carrying_food:
             self.ant_hill.deposit_food(self.food_group_id)
+            
+            # Clear path memory for next trip
+            self.path_memory.clear()
             self.carrying_food = False
             self.food_group_id = None
             return True
         return False
+    
 
     def update(self, deltaTime):
+        # Update distance from ant hill
+        if self.ant_hill:
+            self.distance_from_hill = (self.position - self.ant_hill.position).length()
+        
+        # Deposit pheromones periodically based on state
+        self.pheromone_deposit_timer += deltaTime
+        if self.pheromone_deposit_timer >= self.pheromone_deposit_interval:
+            if self.distance_from_hill > 50:  # Only deposit if away from ant hill
+                if self.pheromone_manager:
+                    if self.carrying_food:
+                        # Deposit RED pheromone when carrying food (path back to hill)
+                        self.pheromone_manager.add_pheromone(
+                            self.position.x, self.position.y, 'return', strength=2.0
+                        )
+                    else:
+                        # Deposit BLUE pheromone when searching for food
+                        self.pheromone_manager.add_pheromone(
+                            self.position.x, self.position.y, 'search', strength=1.5
+                        )
+            self.pheromone_deposit_timer = 0.0
+        
+        # Record path when searching (not carrying food)
+        if not self.carrying_food and self.distance_from_hill > 50:
+            # Add current position to path memory (limit size)
+            if len(self.path_memory) == 0 or (self.position - self.path_memory[-1]).length() > 10:
+                self.path_memory.append(self.position.copy())
+                if len(self.path_memory) > self.max_path_memory:
+                    self.path_memory.pop(0)  # Remove oldest
+        
+        # Determine desired direction based on state and pheromones
+        base_direction = pygame.math.Vector2(0, 0)
+        can_follow_pheromones = self.distance_from_hill > self.min_distance_to_follow
+        
         # If carrying food, head back to ant hill
         if self.carrying_food and self.ant_hill:
             toHill = self.ant_hill.position - self.position
-            self.desiredDirection = toHill.normalize()
+            base_direction = toHill.normalize()
+            
+            # Follow BLUE pheromones when carrying food (paths where others found food)
+            if self.pheromone_manager and can_follow_pheromones and random.random() < self.pheromone_follow_probability:
+                pheromone_dir, pheromone_strength = self.pheromone_manager.get_pheromone_influence(
+                    self.position, 'search'  # Follow BLUE (search) pheromones
+                )
+                if pheromone_strength > 0.2:
+                    # Blend with hill direction
+                    base_direction = (
+                        base_direction * (1 - self.pheromone_influence_weight * pheromone_strength) +
+                        pheromone_dir * (self.pheromone_influence_weight * pheromone_strength)
+                    )
+                    if base_direction.length() > 0:
+                        base_direction = base_direction.normalize()
+        
         elif self.seenFood is not None:
+            # Going toward visible food
             toFood = pygame.math.Vector2(self.seenFood) - self.position
-            self.desiredDirection = toFood.normalize()
+            base_direction = toFood.normalize()
         else:
-            angle = random.uniform(0, 2 * 3.14159)
-            radius = random.uniform(0, 1)
-            randomDirection = pygame.math.Vector2(radius * pygame.math.Vector2(1, 0).rotate_rad(angle))
-            self.desiredDirection = (self.desiredDirection + randomDirection * self.wanderStrength).normalize()
+            # SEARCHING: Follow RED pheromones (paths back to hill from food sources)
+            followed_pheromone = False
+            if self.pheromone_manager and can_follow_pheromones and random.random() < self.pheromone_follow_probability:
+                pheromone_dir, pheromone_strength = self.pheromone_manager.get_pheromone_influence(
+                    self.position, 'return'  # Follow RED (return) pheromones
+                )
+                if pheromone_strength > 0.2:
+                    base_direction = pheromone_dir
+                    followed_pheromone = True
+            
+            # Add wandering behavior if not following pheromones
+            if not followed_pheromone:
+                if base_direction.length() == 0:
+                    base_direction = self.desiredDirection
+                
+                angle = random.uniform(0, 2 * 3.14159)
+                radius = random.uniform(0, 1)
+                randomDirection = pygame.math.Vector2(radius * pygame.math.Vector2(1, 0).rotate_rad(angle))
+                base_direction = (base_direction + randomDirection * self.wanderStrength).normalize()
+        
+        # Ensure base direction is normalized for consistent speed
+        if base_direction.length() > 0:
+            self.desiredDirection = base_direction.normalize()
+        else:
+            self.desiredDirection = base_direction
         
         desiredVelocity = self.desiredDirection * self.maxSpeed
         desiredSteeringForce = desiredVelocity - self.velocity
@@ -97,19 +186,4 @@ class Ant:
         rotated_surface = pygame.transform.rotate(ant_surface, self.rotation)
         rotated_rect = rotated_surface.get_rect(center=(self.position.x, self.position.y))
         screen.blit(rotated_surface, rotated_rect.topleft)
-
-        angleCoeff = 90 / 3.14159
-        segmentsCount = 16
-        points = [self.position]
-        
-        start_rad = math.radians(-self.rotation + self.viewAngle * angleCoeff)
-        end_rad = math.radians(-self.rotation - self.viewAngle * angleCoeff)
-
-        for i in range(segmentsCount + 1):
-            angle = start_rad + (end_rad - start_rad) * i / segmentsCount
-            x = self.position.x + self.viewDistance * math.cos(angle)
-            y = self.position.y + self.viewDistance * math.sin(angle)
-            points.append((x, y))
-        
-        pygame.draw.polygon(screen, COLOR.ANTVIEW, points)
 
